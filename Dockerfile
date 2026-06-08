@@ -1,16 +1,10 @@
-FROM python:3.10-slim
-
+FROM python:3.9-slim
 WORKDIR /app
-
 COPY requirements.txt .
-RUN pip install --upgrade pip && \
-    pip install -r requirements.txt
-
-COPY app.py .
-COPY templates/ templates/
-
+# Install CPU-only PyTorch first to save ~4GB of space
+RUN pip install torch==2.3.0 --index-url https://download.pytorch.org/whl/cpu
+# Install the rest of the requirements
+RUN pip install -r requirements.txt
+COPY . .
 RUN mkdir -p /app/logs
-
-EXPOSE 5000
-
 CMD ["python", "app.py"]
