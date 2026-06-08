@@ -1,0 +1,11 @@
+groups:
+  - name: mlops-alerts
+    rules:
+      - alert: ModelConfidenceDrift
+        expr: prediction_confidence_score < 0.69
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Model confidence dropped below threshold"
+          description: "prediction_confidence_score is below 0.69 for more than 1 minute"

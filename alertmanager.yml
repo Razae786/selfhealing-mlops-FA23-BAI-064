@@ -1,0 +1,18 @@
+global:
+  resolve_timeout: 5m
+
+route:
+  receiver: jenkins-rollback-webhook
+  group_wait: 10s
+  group_interval: 1m
+  repeat_interval: 3m
+
+receivers:
+  - name: jenkins-rollback-webhook
+    webhook_configs:
+      - url: 'http://16.54.195.112:8080/generic-webhook-trigger/invoke?token=ROLLBACK_5D144F_TOKEN'
+        http_config:
+          basic_auth:
+            username: 'JENKINS_USERNAME_PLACEHOLDER'
+            password: 'JENKINS_API_TOKEN_PLACEHOLDER'
+        send_resolved: false

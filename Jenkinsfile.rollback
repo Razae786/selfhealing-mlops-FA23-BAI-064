@@ -1,0 +1,36 @@
+pipeline {
+    agent { label 'agent1' }
+
+    triggers {
+        GenericTrigger(
+            genericVariables: [],
+            token: 'ROLLBACK_5D144F_TOKEN',
+            causeString: 'Triggered by Alertmanager drift detection',
+            printContributedVariables: true,
+            printPostContent: true
+        )
+    }
+
+    stages {
+        stage('Switch Traffic to Stable (Green)') {
+            steps {
+                sh '''
+                    export KUBECONFIG=/var/lib/jenkins/.kube/config
+                    kubectl patch service sentiment-api-service \
+                        -p '{"spec":{"selector":{"app":"sentiment-api","slot":"green"}}}'
+                    echo "Traffic switched to GREEN slot"
+                    kubectl get service sentiment-api-service -o jsonpath='{.spec.selector}'
+                '''
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Rollback to stable complete.'
+        }
+        failure {
+            echo 'Rollback failed.'
+        }
+    }
+}
