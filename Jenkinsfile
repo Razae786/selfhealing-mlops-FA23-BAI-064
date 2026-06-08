@@ -3,8 +3,8 @@ pipeline {
 
     environment {
         DOCKERHUB_CREDS = credentials('dockerhub-credentials')
-        IMAGE_UNSTABLE  = "razae786/sentiment-api:unstable"
-        IMAGE_STABLE    = "razae786/sentiment-api:stable"
+        IMAGE_UNSTABLE  = "pakarmy786/sentiment-api:unstable"
+        IMAGE_STABLE    = "pakarmy786/sentiment-api:stable"
         CONTAINER_NAME  = "sentiment-app-test"
     }
 
