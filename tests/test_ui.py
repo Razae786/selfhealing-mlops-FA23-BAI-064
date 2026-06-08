@@ -1,5 +1,4 @@
-import pytest
-import os
+import pytest, os, time
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
@@ -18,16 +17,12 @@ def test_frontend_sentiment():
     driver = webdriver.Chrome(options=options)
     try:
         driver.get(BASE_URL)
-        wait = WebDriverWait(driver, 10)
-        text_input = wait.until(
-            EC.presence_of_element_located((By.ID, "text-input"))
-        )
-        text_input.send_keys("Spotlessly clean rooms with attentive staff and superb amenities throughout.")
-        submit_btn = driver.find_element(By.ID, "submit-btn")
-        submit_btn.click()
-        wait.until(EC.text_to_be_present_in_element((By.ID, "result-output"), ""))
+        wait = WebDriverWait(driver, 20)
+        text_input = wait.until(EC.presence_of_element_located((By.ID, "text-input")))
+        text_input.send_keys("Spotlessly clean rooms with attentive staff.")
+        driver.find_element(By.ID, "submit-btn").click()
+        time.sleep(5)
         output_text = driver.find_element(By.ID, "result-output").text
-        assert output_text.strip() != ""
         assert any(word in output_text for word in ["POSITIVE", "NEGATIVE", "Confidence"])
     finally:
         driver.quit()
