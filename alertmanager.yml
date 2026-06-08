@@ -13,6 +13,6 @@ receivers:
       - url: 'http://16.54.195.112:8080/generic-webhook-trigger/invoke?token=ROLLBACK_5D144F_TOKEN'
         http_config:
           basic_auth:
-            username: 'JENKINS_USERNAME_PLACEHOLDER'
-            password: 'JENKINS_API_TOKEN_PLACEHOLDER'
+            username: 'admin'
+            password: '11dcec5ce03f5e23d164792fb4a0b68b3f'
         send_resolved: false
