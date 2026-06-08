@@ -1,103 +1,52 @@
 pipeline {
     agent { label 'agent1' }
-
-    environment {
-        DOCKERHUB_CREDS = credentials('dockerhub-credentials')
-        IMAGE_UNSTABLE  = "pakarmy786/sentiment-api:unstable"
-        IMAGE_STABLE    = "pakarmy786/sentiment-api:stable"
-        CONTAINER_NAME  = "sentiment-app-test"
+    environment { 
+        DOCKERHUB_USER = 'pakarmy786'
+        APP_NAME = 'sentiment-api' 
     }
-
     stages {
-
-        stage('Fetch') {
-            steps {
-                checkout scm
-            }
+        stage('Fetch') { 
+            steps { checkout scm } 
         }
-
         stage('Build and Run') {
             steps {
-                sh '''
-                    docker build -t ${IMAGE_UNSTABLE} .
-                    docker rm -f ${CONTAINER_NAME} || true
-                    docker run -d --name ${CONTAINER_NAME} \
-                        -p 5000:5000 \
-                        ${IMAGE_UNSTABLE}
-                    sleep 20
-                    curl -f http://localhost:5000/health || exit 1
-                '''
+                sh "docker build -t ${DOCKERHUB_USER}/${APP_NAME}:unstable ."
+                sh "docker run -d --name unstable-app -p 5001:5000 ${DOCKERHUB_USER}/${APP_NAME}:unstable"
+                sh "sleep 20"
             }
         }
-
-        stage('Unit Test') {
-            steps {
-                sh '''
-                    docker run --rm \
-                        --network host \
-                        -e BASE_URL=http://localhost:5000 \
-                        -v ${WORKSPACE}/tests:/tests \
-                        python:3.10-slim bash -c "
-                            pip install pytest requests &&
-                            cd /tests &&
-                            pytest test_api.py -v
-                        "
-                '''
-            }
+        stage('Unit Test') { 
+            steps { sh "docker exec unstable-app pytest tests/test_api.py" } 
         }
-
-        stage('UI Test') {
-            steps {
-                sh '''
-                    docker run --rm \
-                        --network host \
-                        -e BASE_URL=http://localhost:5000 \
-                        -e DISPLAY=:99 \
-                        -v ${WORKSPACE}/tests:/tests \
-                        selenium/standalone-chrome:latest bash -c "
-                            pip install pytest selenium requests &&
-                            cd /tests &&
-                            pytest test_ui.py -v
-                        " || true
-                '''
-            }
+        stage('UI Test') { 
+            steps { sh "docker exec unstable-app pytest tests/test_ui.py" } 
         }
-
         stage('Build and Push') {
             steps {
-                sh '''
-                    echo ${DOCKERHUB_CREDS_PSW} | docker login -u ${DOCKERHUB_CREDS_USR} --password-stdin
-
-                    docker build -t ${IMAGE_UNSTABLE} .
-                    docker push ${IMAGE_UNSTABLE}
-
-                    git fetch origin stable-fallback
-                    git checkout stable-fallback -- app.py
-                    docker build -t ${IMAGE_STABLE} .
-                    docker push ${IMAGE_STABLE}
-
-                    git checkout HEAD -- app.py
-                '''
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    sh "echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin"
+                    sh "docker push ${DOCKERHUB_USER}/${APP_NAME}:unstable"
+                    sh "git checkout stable-fallback"
+                    sh "docker build -t ${DOCKERHUB_USER}/${APP_NAME}:stable ."
+                    sh "docker push ${DOCKERHUB_USER}/${APP_NAME}:stable"
+                    sh "git checkout main"
+                }
             }
         }
-
         stage('Deploy to Minikube') {
             steps {
-                sh '''
-                    export KUBECONFIG=/var/lib/jenkins/.kube/config
-                    kubectl apply -f k8s/pvc.yaml
-                    kubectl apply -f k8s/blue-deployment.yaml
-                    kubectl apply -f k8s/green-deployment.yaml
-                    kubectl apply -f k8s/service.yaml
-                    kubectl rollout status deployment/sentiment-blue-deployment --timeout=180s
-                '''
+                sh "eval \$(minikube docker-env)"
+                sh "kubectl apply -f k8s/pvc.yaml"
+                sh "kubectl apply -f k8s/blue-deployment.yaml"
+                sh "kubectl apply -f k8s/green-deployment.yaml"
+                sh "kubectl apply -f k8s/service.yaml"
             }
         }
     }
-
-    post {
-        always {
-            sh 'docker rm -f ${CONTAINER_NAME} || true'
-        }
+    post { 
+        always { 
+            sh "docker stop unstable-app || true"
+            sh "docker rm unstable-app || true" 
+        } 
     }
 }
