@@ -14,5 +14,5 @@ receivers:
         http_config:
           basic_auth:
             username: 'jenkins'
-            password: '11dcec5ce03f5e23d164792fb4a0b68b3f'
+            password: '1191bede8171f7bf339221bd206acf1973'
         send_resolved: false
