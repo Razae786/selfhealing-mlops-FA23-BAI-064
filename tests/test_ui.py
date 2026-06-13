@@ -14,14 +14,17 @@ def test_frontend_sentiment():
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--disable-gpu")
 
-    driver = webdriver.Chrome(options=options)
+    driver = webdriver.Remote(
+        command_executor="http://localhost:4444/wd/hub",
+        options=options
+    )
     try:
         driver.get(BASE_URL)
-        wait = WebDriverWait(driver, 20)
+        wait = WebDriverWait(driver, 30)
         text_input = wait.until(EC.presence_of_element_located((By.ID, "text-input")))
         text_input.send_keys("Spotlessly clean rooms with attentive staff.")
         driver.find_element(By.ID, "submit-btn").click()
-        time.sleep(5)
+        wait.until(lambda d: d.find_element(By.ID, "result-output").text.strip() != "")
         output_text = driver.find_element(By.ID, "result-output").text
         assert any(word in output_text for word in ["POSITIVE", "NEGATIVE", "Confidence"])
     finally:
