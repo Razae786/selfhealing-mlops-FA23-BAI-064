@@ -6,10 +6,16 @@ app = Flask(__name__)
 classifier = pipeline(
     "sentiment-analysis",
     model="distilbert-base-uncased-finetuned-sst-2-english")
+
 LOG_FILE = "/app/logs/predictions.log"
 os.makedirs("/app/logs", exist_ok=True)
+
+# Clear log on startup so no stale drift values in exporter
+with open(LOG_FILE, "w") as f:
+    f.write("")
+
 _request_count = 0
-_drift_injected = False
+_drift_injected = False  # Always starts False on pod start
 
 @app.route("/", methods=["GET"])
 def index():
@@ -17,8 +23,8 @@ def index():
 
 @app.route("/health", methods=["GET"])
 def health():
-    return jsonify({"status":"healthy","model":"distilbert-sentiment-v1",
-                    "model_version":"unstable-v1"})
+    return jsonify({"status": "healthy", "model": "distilbert-sentiment-v1",
+                    "model_version": "unstable-v1"})
 
 @app.route("/predict", methods=["POST"])
 def predict():
@@ -32,8 +38,8 @@ def predict():
         confidence = confidence * random.uniform(0.3, 0.6)
     with open(LOG_FILE, "a") as f:
         f.write(f"{time.time()},{confidence:.4f}\n")
-    return jsonify({"label":result["label"],"confidence":round(confidence,4),
-                    "model_version":"unstable-v1","request_count":_request_count})
+    return jsonify({"label": result["label"], "confidence": round(confidence, 4),
+                    "model_version": "unstable-v1", "request_count": _request_count})
 
 @app.route("/api/latest-confidence", methods=["GET"])
 def latest_confidence():
@@ -56,7 +62,10 @@ def inject_drift():
 @app.route("/reset", methods=["POST"])
 def reset():
     global _drift_injected, _request_count
-    _drift_injected = False; _request_count = 0
+    _drift_injected = False
+    _request_count = 0
+    with open(LOG_FILE, "w") as f:
+        f.write("")
     return jsonify({"status": "reset"})
 
 if __name__ == "__main__":
