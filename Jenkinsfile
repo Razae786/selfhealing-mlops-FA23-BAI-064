@@ -18,12 +18,15 @@ pipeline {
         }
         stage('Unit Test') {
             steps {
-                sh "docker run --rm --network host -e BASE_URL=http://localhost:5000 -v \$(pwd)/tests:/tests python:3.10-slim bash -c 'pip install pytest requests -q && cd /tests && pytest test_api.py -v'"
+                sh "docker run --rm --network host -e BASE_URL=http://localhost:5000 -v $(pwd)/tests:/tests python:3.10-slim bash -c 'pip install pytest requests -q && cd /tests && pytest test_api.py -v'"
             }
         }
         stage('UI Test') {
             steps {
-                sh "docker run --rm --network host -e BASE_URL=http://localhost:5000 -v \$(pwd)/tests:/tests python:3.10-slim bash -c 'pip install pytest selenium -q && cd /tests && pytest test_ui.py -v'"
+                sh "docker rm -f selenium-chrome || true"
+                sh "docker run -d --name selenium-chrome --network host --shm-size=2g selenium/standalone-chrome:latest"
+                sh "sleep 15"
+                sh "docker run --rm --network host -e BASE_URL=http://localhost:5000 -v $(pwd)/tests:/tests python:3.10-slim bash -c 'pip install pytest selenium requests -q && cd /tests && pytest test_ui.py -v'"
             }
         }
         stage('Build and Push') {
@@ -51,8 +54,8 @@ pipeline {
     }
     post {
         always {
-            sh "docker stop unstable-app || true"
-            sh "docker rm unstable-app || true"
+            sh "docker rm -f unstable-app || true"
+            sh "docker rm -f selenium-chrome || true"
         }
     }
 }
