@@ -10,12 +10,13 @@ classifier = pipeline(
 LOG_FILE = "/app/logs/predictions.log"
 os.makedirs("/app/logs", exist_ok=True)
 
-# Clear log on startup so no stale drift values in exporter
 with open(LOG_FILE, "w") as f:
     f.write("")
 
 _request_count = 0
-_drift_injected = False  # Always starts False on pod start
+_drift_injected = False
+_drift_time = None
+DRIFT_TIMEOUT = 300  # auto-reset after 5 minutes
 
 @app.route("/", methods=["GET"])
 def index():
@@ -28,8 +29,16 @@ def health():
 
 @app.route("/predict", methods=["POST"])
 def predict():
-    global _request_count, _drift_injected
+    global _request_count, _drift_injected, _drift_time
     _request_count += 1
+
+    # Auto-reset drift after 5 minutes
+    if _drift_injected and _drift_time and (time.time() - _drift_time) > DRIFT_TIMEOUT:
+        _drift_injected = False
+        _drift_time = None
+        with open(LOG_FILE, "w") as f:
+            f.write("")
+
     data = request.get_json()
     text = data.get("text", "")
     result = classifier(text)[0]
@@ -55,15 +64,17 @@ def latest_confidence():
 
 @app.route("/inject-drift", methods=["POST"])
 def inject_drift():
-    global _drift_injected
+    global _drift_injected, _drift_time
     _drift_injected = True
+    _drift_time = time.time()
     return jsonify({"status": "drift_injected"})
 
 @app.route("/reset", methods=["POST"])
 def reset():
-    global _drift_injected, _request_count
+    global _drift_injected, _request_count, _drift_time
     _drift_injected = False
     _request_count = 0
+    _drift_time = None
     with open(LOG_FILE, "w") as f:
         f.write("")
     return jsonify({"status": "reset"})
