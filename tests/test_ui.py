@@ -6,6 +6,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
 BASE_URL = os.environ.get("BASE_URL", "http://localhost:5000")
+SELENIUM_URL = os.environ.get("SELENIUM_URL", "http://localhost:4444/wd/hub")
 
 def test_frontend_sentiment():
     options = Options()
@@ -13,20 +14,17 @@ def test_frontend_sentiment():
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
 
-    # Wait for selenium hub to be ready
+    # Wait for selenium to be ready
     for i in range(30):
         try:
-            r = requests.get("http://localhost:4444/wd/hub/status", timeout=2)
+            r = requests.get(SELENIUM_URL.replace("/wd/hub", "/wd/hub/status"), timeout=2)
             if r.json().get("value", {}).get("ready"):
                 break
         except:
             pass
         time.sleep(2)
 
-    driver = webdriver.Remote(
-        command_executor="http://localhost:4444/wd/hub",
-        options=options
-    )
+    driver = webdriver.Remote(command_executor=SELENIUM_URL, options=options)
     try:
         driver.get(BASE_URL)
         wait = WebDriverWait(driver, 30)
