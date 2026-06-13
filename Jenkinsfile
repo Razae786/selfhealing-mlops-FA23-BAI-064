@@ -13,7 +13,7 @@ pipeline {
                 sh "docker stop unstable-app || true"
                 sh "docker rm unstable-app || true"
                 sh "docker build -t ${DOCKERHUB_USER}/${APP_NAME}:unstable ."
-                sh "docker run -d --name unstable-app -p 5001:5000 ${DOCKERHUB_USER}/${APP_NAME}:unstable"
+                sh "docker run -d --name unstable-app -p 5000:5000 ${DOCKERHUB_USER}/${APP_NAME}:unstable"
                 sh "sleep 50"
             }
         }
