@@ -1,4 +1,4 @@
-import pytest, os, time
+import pytest, os, time, requests
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
@@ -12,7 +12,16 @@ def test_frontend_sentiment():
     options.add_argument("--headless")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--disable-gpu")
+
+    # Wait for selenium hub to be ready
+    for i in range(30):
+        try:
+            r = requests.get("http://localhost:4444/wd/hub/status", timeout=2)
+            if r.json().get("value", {}).get("ready"):
+                break
+        except:
+            pass
+        time.sleep(2)
 
     driver = webdriver.Remote(
         command_executor="http://localhost:4444/wd/hub",
