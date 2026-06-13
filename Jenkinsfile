@@ -10,8 +10,7 @@ pipeline {
         }
         stage('Build and Run') {
             steps {
-                sh "docker stop unstable-app || true"
-                sh "docker rm unstable-app || true"
+                sh "docker ps -aq --filter publish=5000 | xargs -r docker rm -f"
                 sh "docker build -t ${DOCKERHUB_USER}/${APP_NAME}:unstable ."
                 sh "docker run -d --name unstable-app -p 5000:5000 ${DOCKERHUB_USER}/${APP_NAME}:unstable"
                 sh "sleep 50"
@@ -24,7 +23,7 @@ pipeline {
         }
         stage('UI Test') {
             steps {
-                sh "docker run --rm --network host -e BASE_URL=http://localhost:5000 -v \$(pwd)/tests:/tests python:3.10-slim bash -c 'pip install pytest selenium -q && cd /tests && pytest test_ui.py -v' || true"
+                sh "docker run --rm --network host -e BASE_URL=http://localhost:5000 -v \$(pwd)/tests:/tests python:3.10-slim bash -c 'pip install pytest selenium -q && cd /tests && pytest test_ui.py -v'"
             }
         }
         stage('Build and Push') {
