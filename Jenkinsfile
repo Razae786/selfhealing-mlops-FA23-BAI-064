@@ -8,10 +8,19 @@ pipeline {
         stage('Fetch') { steps { checkout scm } }
         stage('Build and Run') {
             steps {
-                sh "docker ps -aq --filter publish=5000 | xargs -r docker rm -f"
+                sh "docker rm -f unstable-app || true"
                 sh "docker build -t ${DOCKERHUB_USER}/${APP_NAME}:unstable ."
-                sh "docker run -d --name unstable-app -p 5000:5000 ${DOCKERHUB_USER}/${APP_NAME}:unstable"
-                sh "sleep 50"
+                sh "docker run -d --name unstable-app --network host ${DOCKERHUB_USER}/${APP_NAME}:unstable"
+                sh """
+                    echo 'Waiting for Flask app to be ready...'
+                    for i in \$(seq 1 60); do
+                        if curl -s http://localhost:5000/health | grep -q 'healthy'; then
+                            echo 'App is ready!'
+                            break
+                        fi
+                        sleep 2
+                    done
+                """
             }
         }
         stage('Unit Test') {
@@ -24,8 +33,8 @@ pipeline {
             steps {
                 sh "docker rm -f selenium-chrome || true"
                 sh "docker run -d --name selenium-chrome --network host --shm-size=2g selenium/standalone-chrome:latest"
-                sh "sleep 20"
-                sh "docker run --rm --network host -e BASE_URL=http://localhost:5000 -e SELENIUM_URL=http://localhost:4444/wd/hub -v \$(pwd)/tests:/tests python:3.10-slim bash -c 'pip install pytest selenium requests -q && cd /tests && pytest test_ui.py -v' || true"
+                sh "sleep 15"
+                sh "docker run --rm --network host -e BASE_URL=http://localhost:5000 -e SELENIUM_URL=http://localhost:4444/wd/hub -v \$(pwd)/tests:/tests python:3.10-slim bash -c 'pip install pytest selenium requests -q && cd /tests && pytest test_ui.py -v'"
             }
         }
         stage('Build and Push') {
