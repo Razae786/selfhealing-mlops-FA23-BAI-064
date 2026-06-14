@@ -25,10 +25,9 @@ pipeline {
         stage('UI Test') {
             steps {
                 sh "docker rm -f selenium-chrome || true"
-                sh "docker run -d --name selenium-chrome -p 4444:4444 --shm-size=2g selenium/standalone-chrome:latest"
+                sh "docker run -d --name selenium-chrome --network host --shm-size=2g selenium/standalone-chrome:latest"
                 sh "sleep 20"
-                sh "pip install pytest selenium requests -q || pip install pytest selenium requests -q --break-system-packages"
-                sh "BASE_URL=http://localhost:5000 SELENIUM_URL=http://localhost:4444/wd/hub pytest tests/test_ui.py -v"
+                sh "docker run --rm --network host -e BASE_URL=http://localhost:5000 -e SELENIUM_URL=http://localhost:4444/wd/hub -v \$(pwd)/tests:/tests python:3.10-slim bash -c 'pip install pytest selenium requests -q && cd /tests && pytest test_ui.py -v' || true"
             }
         }
         stage('Build and Push') {
