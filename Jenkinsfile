@@ -5,9 +5,7 @@ pipeline {
         APP_NAME = 'sentiment-api'
     }
     stages {
-        stage('Fetch') {
-            steps { checkout scm }
-        }
+        stage('Fetch') { steps { checkout scm } }
         stage('Build and Run') {
             steps {
                 sh "docker ps -aq --filter publish=5000 | xargs -r docker rm -f"
@@ -35,10 +33,13 @@ pipeline {
                 withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
                     sh "echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin"
                     sh "docker push ${DOCKERHUB_USER}/${APP_NAME}:unstable"
+                    sh "git fetch origin"
                     sh "git checkout stable-fallback"
+                    sh "git reset --hard origin/stable-fallback"
                     sh "docker build -t ${DOCKERHUB_USER}/${APP_NAME}:stable ."
                     sh "docker push ${DOCKERHUB_USER}/${APP_NAME}:stable"
                     sh "git checkout main"
+                    sh "git reset --hard origin/main"
                 }
             }
         }
