@@ -65,6 +65,29 @@ pipeline {
     }
     post {
         always {
+            script {
+                def committer = sh(script: "git log -1 --pretty=format:'%an <%ae>'", returnStdout: true).trim()
+                def statusEmoji = currentBuild.currentResult == 'SUCCESS' ? '✅' : '❌'
+                def emailBody = """
+${statusEmoji} CI/CD Pipeline Status: ${currentBuild.currentResult}
+Committer: ${committer}
+Duration: ${currentBuild.durationString}
+Build URL: ${env.BUILD_URL}
+
+Pipeline Stages Executed:
+1. Fetch (Checkout SCM)
+2. Build and Run (Docker build & run unstable)
+3. Unit Test (PyTest API tests)
+4. UI Test (Selenium headless Chrome)
+5. Build and Push (DockerHub push stable & unstable)
+6. Deploy to Minikube (K8s manifests applied)
+
+View full console output here: ${env.BUILD_URL}console
+"""
+                mail to: 'razaeilyas123@gmail.com',
+                     subject: "${statusEmoji} CI/CD Pipeline ${currentBuild.currentResult} - Build #${env.BUILD_NUMBER}",
+                     body: emailBody
+            }
             sh "docker rm -f unstable-app || true"
             sh "docker rm -f selenium-chrome || true"
         }

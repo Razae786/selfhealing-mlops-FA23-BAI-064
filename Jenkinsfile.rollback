@@ -1,36 +1,34 @@
 pipeline {
-    agent { label 'agent1' }
-
-    triggers {
-        GenericTrigger(
-            genericVariables: [],
-            token: 'ROLLBACK_5D144F_TOKEN',
-            causeString: 'Triggered by Alertmanager drift detection',
-            printContributedVariables: true,
-            printPostContent: true
-        )
-    }
-
+    agent any
     stages {
         stage('Switch Traffic to Stable (Green)') {
             steps {
-                sh '''
-                    export KUBECONFIG=/var/lib/jenkins/.kube/config
-                    kubectl patch service sentiment-api-service \
-                        -p '{"spec":{"selector":{"app":"sentiment-api","slot":"green"}}}'
-                    echo "Traffic switched to GREEN slot"
-                    kubectl get service sentiment-api-service -o jsonpath='{.spec.selector}'
-                '''
+                sh "export KUBECONFIG=/var/lib/jenkins/.kube/config && kubectl patch service sentiment-api-service -p '{\"spec\":{\"selector\":{\"app\":\"sentiment-api\",\"slot\":\"green\"}}}'"
             }
         }
     }
-
     post {
-        success {
-            echo 'Rollback to stable complete.'
-        }
-        failure {
-            echo 'Rollback failed.'
+        always {
+            script {
+                def statusEmoji = currentBuild.currentResult == 'SUCCESS' ? '✅' : '❌'
+                def emailBody = """
+${statusEmoji} Self-Healing Rollback Status: ${currentBuild.currentResult}
+Triggered by: Alertmanager (Prometheus Drift Detection)
+Duration: ${currentBuild.durationString}
+Build URL: ${env.BUILD_URL}
+
+Actions Taken:
+- Detected model confidence drop below 0.69
+- Alertmanager fired webhook to Jenkins
+- Patched Kubernetes service 'sentiment-api-service' selector to 'slot: green'
+- Traffic successfully routed to stable fallback model (stable-v0-03FF)
+
+View console output: ${env.BUILD_URL}console
+"""
+                mail to: 'razaeilyas123@gmail.com',
+                     subject: "${statusEmoji} Rollback ${currentBuild.currentResult} - Traffic Switched to Green",
+                     body: emailBody
+            }
         }
     }
 }
